@@ -32,7 +32,7 @@ wd="$PWD"
 src="${src:-$wd/src}"
 bld="${bld:-$wd/bld}"
 log="${log:-$bld/build.log}"
-prefix="${prefix:-$wd/$host}"
+prefix="${prefix:-$wd/install}"
 rm -fr "$log" "$src" "$bld"
 mkdir "$bld" "$src"
 exec 3>&1 1>>"$log" 2>&1
@@ -139,8 +139,6 @@ build_toolchain()
   if [ "$pthreads" = "true" ]; then
     enable_threads="--enable-threads=posix"
   fi
-
-  rm -fr "$prefix"
 
   clean_build "$bld/binutils"
   echo "configuring binutils" >&3
