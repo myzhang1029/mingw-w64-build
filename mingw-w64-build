@@ -26,6 +26,17 @@ v_mpfr="4.1.0"
 v_mpc="1.2.1"
 v_isl="0.24"
 
+cpus="$(nproc)"
+build="$(curl -s "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD" | sh)"
+wd="$PWD"
+src="${src:-$wd/src}"
+bld="${bld:-$wd/bld}"
+log="${log:-$bld/build.log}"
+prefix="${prefix:-$wd/$host}"
+rm -fr "$log" "$src" "$bld"
+mkdir "$bld" "$src"
+exec 3>&1 1>>"$log" 2>&1
+
 show_help()
 {
   cat <<HELP
@@ -59,11 +70,11 @@ VERSION
 
 error_exit()
 {
-  local error_text="$1"
-  shift
-
-  if [[ -z "$error_text" ]]; then
+  local error_text
+  if [ 0 = "$#" ]; then
     error_text="See 'build.log' for further details."
+  else
+    error_text="$1"
   fi
 
   echo "mingw-w64-build: error: $error_text" >&3
@@ -119,14 +130,13 @@ download_sources()
 build_toolchain()
 {
   local host="$1-w64-mingw32"
-  local prefix="$wd/$host"
   export PATH="$prefix/bin:$PATH"
 
-  if [[ "$1" = "i686" ]]; then
+  if [ "$1" = "i686" ]; then
     i686_dwarf2="--disable-sjlj-exceptions --with-dwarf2"
   fi
 
-  if [[ "$pthreads" = true ]]; then
+  if [ "$pthreads" = "true" ]; then
     enable_threads="--enable-threads=posix"
   fi
 
@@ -138,7 +148,7 @@ build_toolchain()
     --enable-static --with-sysroot="$prefix" --target="$host" \
     --disable-multilib --disable-nls --enable-lto --disable-werror || error_exit
   echo "building binutils" >&3
-  make -j $cpus || error_exit
+  make "-j$cpus" || error_exit
   echo "installing binutils" >&3
   make install || error_exit
 
@@ -154,10 +164,10 @@ build_toolchain()
   clean_build "$bld/gcc"
   echo "configuring gcc" >&3
   "../../src/gcc-$br_gcc/configure" --target="$host" --disable-shared \
-    --enable-static --disable-multilib --prefix="$prefix" $i686_dwarf2 \
+    --enable-static --disable-multilib --prefix="$prefix" "$i686_dwarf2" \
     --enable-languages=c,c++ --disable-nls $enable_threads || error_exit
   echo "running 'make-gcc' for gcc" >&3
-  make -j $cpus all-gcc || error_exit
+  make "-j$cpus" all-gcc || error_exit
   echo "running 'install-gcc' for gcc" >&3
   make install-gcc || error_exit
 
@@ -166,24 +176,24 @@ build_toolchain()
   "../../src/mingw-w64-$br_mingww64/mingw-w64-crt/configure" --build="$build" --host="$host" \
     --prefix="$prefix/$host" --with-sysroot="$prefix/$host" || error_exit
   echo "building mingw-w64-crt" >&3
-  make -j $cpus || error_exit
+  make "-j$cpus" || error_exit
   echo "installing mingw-w64-crt" >&3
   make install || error_exit
 
-  if [[ "$pthreads" = true ]]; then
+  if [ "$pthreads" = "true" ]; then
     clean_build "$bld/winpthreads"
     echo "configuring winpthreads" >&3
     "../../src/mingw-w64-$br_mingww64/mingw-w64-libraries/winpthreads/configure" --build="$build" \
       --host="$host" --disable-shared --enable-static --prefix="$prefix/$host" || error_exit
     echo "building winpthreads" >&3
-    make -j $cpus || error_exit
+    make "-j$cpus" || error_exit
     echo "installing winpthreads" >&3
     make install || error_exit
   fi
 
   cd "$bld/gcc" || error_exit
   echo "building gcc" >&3
-  make -j $cpus || error_exit
+  make "-j$cpus" || error_exit
   echo "installing gcc" >&3
   make install || error_exit
 
@@ -204,8 +214,7 @@ while :; do
       pthreads=true
       ;;
     -?*)
-      echo "mingw-w64-build: error: unknown option: '$1'" >&2
-      exit
+      error_exit "unknown option: '$1'"
       ;;
     *)
       break
@@ -214,21 +223,14 @@ while :; do
   shift
 done
 
-if [[ "$PWD" = *" "* ]]; then
-  echo "mingw-w64-build: error: working path contains spaces" >&2
-  exit 1
+if [ 0 = "$#" ]; then
+  error_exit "missing ARCH option
+See 'mingw-w64-build --help' for build options." >&2
 fi
 
-if [[ -z "$@" ]]; then
-  echo "mingw-w64-build: error: missing ARCH option" >&2
-  echo "See 'mingw-w64-build --help' for build options." >&2
-  exit 1
-fi
-
-for arch in $@; do
-  if [[ "$arch" != "i686" ]] && [[ "$arch" != "x86_64" ]]; then
-    echo "mingw-w64-build: error: invalid ARCH: '$arch'" >&2
-    exit 1
+for arch in "$@"; do
+  if [ "$arch" != "i686" ] && [ "$arch" != "x86_64" ]; then
+    error_exit "invalid ARCH: '$arch'"
   fi
 done
 
@@ -248,29 +250,18 @@ progs=(
 )
 missing_progs=""
 for prog in "${progs[@]}"; do
-  if ! command -v $prog >/dev/null; then
+  if ! command -v "$prog" >/dev/null; then
     missing_progs="$prog $missing_progs"
   fi
 done
-if [[ -n "$missing_progs" ]]; then
-  echo "mingw-w64-build: missing required program(s): $missing_progs" >&2
-  exit 1
+if [ -n "$missing_progs" ]; then
+  error_exit "missing required program(s): $missing_progs"
 fi
 
-cpus=$(grep -c processor /proc/cpuinfo 2>/dev/null || sysctl -n hw.ncpu | tr -d "\n" 2>/dev/null)
-(( cpus += 2 ))
-build=$(curl -s "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD" | sh)
-wd="$PWD"
-src="$wd/src"
-bld="$wd/bld"
-log="$wd/bld/build.log"
+download_sources
 
-rm -fr "$log" "$src" "$bld"
-mkdir "$bld" "$src"
-download_sources 3>&1 1>>"$log" 2>&1
-
-for arch in $@; do
-  build_toolchain "$arch" 3>&1 1>>"$log" 2>&1
+for arch in "$@"; do
+  build_toolchain "$arch"
 done
 rm -fr "$bld" "$src"
 
