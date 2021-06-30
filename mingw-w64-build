@@ -118,33 +118,53 @@ download_sources()
     echo "extracting $archive" >&3
     tar -xf "$archive" || error_exit
   done
-
-  cd "$src/gcc-$br_gcc" || error_exit
-
-  ln -s "../gmp-$v_gmp" "gmp"
-  ln -s "../mpfr-$v_mpfr" "mpfr"
-  ln -s "../mpc-$v_mpc" "mpc"
-  ln -s "../isl-$v_isl" "isl"
 }
 
 build_toolchain()
 {
   local host="$1-w64-mingw32"
   export PATH="$prefix/bin:$PATH"
-
-  if [ "$1" = "i686" ]; then
-    i686_dwarf2="--disable-sjlj-exceptions --with-dwarf2"
-  fi
+  export LD_LIBRARY_PATH="$prefix/lib"
 
   if [ "$pthreads" = "true" ]; then
     enable_threads="--enable-threads=posix"
   fi
 
+  clean_build "$bld/gmp"
+  echo "configuring host gmp" >&3
+  "../../src/gmp-$v_gmp/configure" --prefix="$prefix" || error_exit
+  echo "building host gmp" >&3
+  make "-j$cpus" || error_exit
+  echo "installing host gmp" >&3
+  make install || error_exit
+  make distclean
+
+  clean_build "$bld/mpfr"
+  echo "configuring host mpfr" >&3
+  "../../src/mpfr-$v_mpfr/configure" --prefix="$prefix" \
+    --with-gmp="$prefix" || error_exit
+  echo "building host mpfr" >&3
+  make "-j$cpus" || error_exit
+  echo "installing host mpfr" >&3
+  make install || error_exit
+  make distclean
+
+  clean_build "$bld/mpc"
+  echo "configuring host mpc" >&3
+  "../../src/mpc-$v_mpc/configure" --prefix="$prefix" \
+    --with-gmp="$prefix" --with-mpfr="$prefix" || error_exit
+  echo "building host mpc" >&3
+  make "-j$cpus" || error_exit
+  echo "installing host mpc" >&3
+  make install || error_exit
+  make distclean
+
   clean_build "$bld/binutils"
   echo "configuring binutils" >&3
   "../../src/binutils-$br_binutils/configure" --prefix="$prefix" --disable-shared \
-    --enable-static --with-sysroot="$prefix" --target="$host" \
-    --disable-multilib --disable-nls --enable-lto --disable-werror || error_exit
+    --enable-static --with-sysroot="$prefix" --with-gmp="$prefix" --with-mpc="$prefix" \
+    --with-mpfr="$prefix" --target="$host" --disable-multilib --disable-nls \
+    --enable-lto --disable-werror || error_exit
   echo "building binutils" >&3
   make "-j$cpus" || error_exit
   echo "installing binutils" >&3
@@ -162,7 +182,8 @@ build_toolchain()
   clean_build "$bld/gcc"
   echo "configuring gcc" >&3
   "../../src/gcc-$br_gcc/configure" --target="$host" --disable-shared \
-    --enable-static --disable-multilib --prefix="$prefix" "$i686_dwarf2" \
+    --enable-static --disable-multilib --prefix="$prefix" \
+    --with-gmp="$prefix" --with-mpc="$prefix" --with-mpfr="$prefix" \
     --enable-languages=c,c++ --disable-nls $enable_threads || error_exit
   echo "running 'make-gcc' for gcc" >&3
   make "-j$cpus" all-gcc || error_exit
@@ -241,7 +262,6 @@ progs=(
   "g++"
   "tr"
   "tar"
-  "svn"
   "flex"
   "bison"
   "makeinfo"
