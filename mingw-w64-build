@@ -28,7 +28,7 @@ v_mpc="1.2.1"
 v_isl="0.24"
 
 cpus="$(nproc)"
-build="$(curl -s "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD" | sh)"
+build="$(wget -qO- "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD" | sh)"
 wd="$PWD"
 src="${src:-$wd/src}"
 bld="${bld:-$wd/bld}"
@@ -108,7 +108,7 @@ download_sources()
   for url in "${urls[@]}"; do
     local archive="${url##*/}"
     echo "downloading $archive" >&3
-    curl -C- -Lo "$archive" "$url" || error_exit
+    wget -qcO "$archive" "$url" || error_exit
     echo "extracting $archive" >&3
     tar -xf "$archive" || error_exit
   done
@@ -248,7 +248,7 @@ for arch in "$@"; do
 done
 
 progs=(
-  "curl"
+  "wget"
   "gzip"
   "bzip2"
   "git"
