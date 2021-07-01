@@ -18,9 +18,10 @@
 #
 
 v_script="5git"
-br_mingww64="v9.0.0"
-br_binutils="binutils-2_36_1"
-br_gcc="releases/gcc-11.1.0"
+# This 'v' is required
+v_mingww64="v9.0.0"
+v_binutils="2.36.1"
+v_gcc="11.1.0"
 v_gmp="6.2.1"
 v_mpfr="4.1.0"
 v_mpc="1.2.1"
@@ -62,6 +63,7 @@ show_version()
   cat <<VERSION
 mingw-w64-build $v_script
 Copyright (C) 2020 Kyle Schwarz
+Copyright (C) 2021 Zhang Maiyun
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
@@ -84,27 +86,19 @@ error_exit()
 
 clean_build()
 {
-  local build_dir="$1"
-
-  rm -fr "$build_dir"
-  mkdir -p "$build_dir"
-  cd "$build_dir" || error_exit
+  rm -fr "$1"
+  mkdir -p "$1"
+  cd "$1" || error_exit
 }
 
 download_sources()
 {
   cd "$src" || error_exit
 
-  echo "downloading mingw-w64" >&3
-  git clone --depth 1 -b "$br_mingww64" https://git.code.sf.net/p/mingw-w64/mingw-w64 "mingw-w64-$br_mingww64" || error_exit
-
-  echo "downloading binutils" >&3
-  git clone --depth 1 -b "$br_binutils" git://sourceware.org/git/binutils-gdb.git binutils-"$br_binutils" || error_exit
-
-  echo "downloading gcc" >&3
-  git clone --depth 1 -b "$br_gcc" git://gcc.gnu.org/git/gcc.git "gcc-$br_gcc" || error_exit
-
   local urls=(
+    "https://sourceforge.net/projects/mingw-w64/files/mingw-w64/mingw-w64-release/mingw-w64-$v_mingww64.tar.bz2"
+    "https://ftp.gnu.org/gnu/binutils/binutils-$v_binutils.tar.xz"
+    "https://ftp.gnu.org/gnu/gcc/gcc-$v_gcc/gcc-$v_gcc.tar.xz"
     "https://ftp.gnu.org/gnu/gmp/gmp-$v_gmp.tar.xz"
     "https://ftp.gnu.org/gnu/mpfr/mpfr-$v_mpfr.tar.xz"
     "https://ftp.gnu.org/gnu/mpc/mpc-$v_mpc.tar.gz"
@@ -114,7 +108,7 @@ download_sources()
   for url in "${urls[@]}"; do
     local archive="${url##*/}"
     echo "downloading $archive" >&3
-    curl -O "$url" || error_exit
+    curl -C- -Lo "$archive" "$url" || error_exit
     echo "extracting $archive" >&3
     tar -xf "$archive" || error_exit
   done
