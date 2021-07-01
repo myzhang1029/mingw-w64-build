@@ -155,7 +155,7 @@ build_toolchain()
 
   clean_build "$bld/binutils"
   echo "configuring binutils" >&3
-  "../../src/binutils-$br_binutils/configure" --prefix="$prefix" --disable-shared \
+  "../../src/binutils-$v_binutils/configure" --prefix="$prefix" --disable-shared \
     --enable-static --with-sysroot="$prefix" --with-gmp="$prefix" --with-mpc="$prefix" \
     --with-mpfr="$prefix" --target="$host" --disable-multilib --disable-nls \
     --enable-lto --disable-werror || error_exit
@@ -166,7 +166,7 @@ build_toolchain()
 
   clean_build "$bld/mingw-w64"
   echo "configuring mingw-w64-headers" >&3
-  "../../src/mingw-w64-$br_mingww64/mingw-w64-headers/configure" --build="$build" \
+  "../../src/mingw-w64-$v_mingww64/mingw-w64-headers/configure" --build="$build" \
     --host="$host" --prefix="$prefix/$host" || error_exit
   echo "installing mingw-w64-headers" >&3
   make install || error_exit
@@ -175,7 +175,7 @@ build_toolchain()
 
   clean_build "$bld/gcc"
   echo "configuring gcc" >&3
-  "../../src/gcc-$br_gcc/configure" --target="$host" --disable-shared \
+  "../../src/gcc-$v_gcc/configure" --target="$host" --disable-shared \
     --enable-static --disable-multilib --prefix="$prefix" \
     --with-gmp="$prefix" --with-mpc="$prefix" --with-mpfr="$prefix" \
     --enable-languages=c,c++ --disable-nls $enable_threads || error_exit
@@ -186,7 +186,7 @@ build_toolchain()
 
   clean_build "$bld/mingw-w64"
   echo "configuring mingw-w64-crt" >&3
-  "../../src/mingw-w64-$br_mingww64/mingw-w64-crt/configure" --build="$build" --host="$host" \
+  "../../src/mingw-w64-$v_mingww64/mingw-w64-crt/configure" --build="$build" --host="$host" \
     --prefix="$prefix/$host" --with-sysroot="$prefix/$host" || error_exit
   echo "building mingw-w64-crt" >&3
   make "-j$cpus" || error_exit
@@ -196,7 +196,7 @@ build_toolchain()
   if [ "$pthreads" = "true" ]; then
     clean_build "$bld/winpthreads"
     echo "configuring winpthreads" >&3
-    "../../src/mingw-w64-$br_mingww64/mingw-w64-libraries/winpthreads/configure" --build="$build" \
+    "../../src/mingw-w64-$v_mingww64/mingw-w64-libraries/winpthreads/configure" --build="$build" \
       --host="$host" --disable-shared --enable-static --prefix="$prefix/$host" || error_exit
     echo "building winpthreads" >&3
     make "-j$cpus" || error_exit
